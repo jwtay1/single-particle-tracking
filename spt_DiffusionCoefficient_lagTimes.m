@@ -18,7 +18,7 @@ y=TrackCoordinates(:,2);
 z=TrackCoordinates(:,3);
 
 trackNumbers = TrackInfo(:, 1);
-
+%%
 % --No longer used--
 % %Constants for diffusion calculation
 % q = 4; %Twice the number of diffusable dimensions
@@ -29,6 +29,7 @@ trackData = struct;
 
 for iTrack = 1:max(TrackInfo(:,1))
 
+    %Read current track information
     rowIdxsCurrTrack = trackNumbers == iTrack;
 
     %Particle coordinates in microns
@@ -36,8 +37,10 @@ for iTrack = 1:max(TrackInfo(:,1))
     currY = y(rowIdxsCurrTrack) * 1e-3;
     currZ = z(rowIdxsCurrTrack) * 1e-3;
 
+    currTime = TimeInfo(rowIdxsCurrTrack);
+
     trackData(iTrack).Pos = [currX currY currZ];
-    trackData(iTrack).Timestamps = TimeInfo(rowIdxsCurrTrack);
+    trackData(iTrack).Timestamps = currTime;
     trackData(iTrack).Frames = FrameInfo(rowIdxsCurrTrack);
 
     %Only calculate if number of recorded timepoints >= 2
@@ -45,36 +48,57 @@ for iTrack = 1:max(TrackInfo(:,1))
         continue
     end
 
-    %Compute the change in position at each recorded timepoint
-    dX = diff(currX);
-    dY = diff(currY);
-    dZ = diff(currZ);
+    %Compute a matrix of square displacements and time lags for each pair
+    %of positions
+    matLagTimes = NaN(nnz(rowIdxsCurrTrack));
+    matSD = NaN(nnz(rowIdxsCurrTrack));
 
-    dT = diff(TimeInfo(rowIdxsCurrTrack));  %in seconds
+    for iData = 1:numel(currTime)
 
-    %Calculate lag time
-    lagTime = cumsum(dT);
+        for jj = (iData + 1):numel(currTime)
 
-    %For each timepoint, compute the squared displacement (SD)
-    SD = cumsum(dX.^2 + dY.^2 + dZ.^2);
+            matLagTimes(iData, jj) = currTime(jj) - currTime(iData);
+            matSD(iData, jj) = ...
+                (currX(iData) - currX(jj)).^2 + ...
+                (currY(iData) - currY(jj)).^2 + ...
+                (currZ(iData) - currZ(jj)).^2;
 
-    trackData(iTrack).SD = SD;
-    trackData(iTrack).LagTime = lagTime;
+        end
 
-    %     N = numel(currX);
-    %
-    %     MSD(iTrack) = (1/(N-1)) * sum(dX.^2 + dY.^2 + dZ.^2);
-    %
-    %     %Compute diffusion coefficient (in microns^2/sec)
-    %     D(iTrack) = MSD(iTrack)/(q * (N-1) * dT);
+    end
+
+    trackData(iTrack).matLagTimes = matLagTimes;
+    trackData(iTrack).matSD = matSD;
+
+    %Remove Nans and vectorize
+    trackData(iTrack).matLagTimesVec = matLagTimes(~isnan(matLagTimes));
+    trackData(iTrack).matSDVec = matSD(~isnan(matSD));
+
+    %Compute the MSD for each lag time
+    lagTimes = unique(round(trackData(iTrack).matLagTimesVec, 5));
+
+    trackData(iTrack).lagTimes = lagTimes;
+
+    MSD = zeros(1, numel(lagTimes));
+    for iT = 1:numel(lagTimes)
+            
+        MSD(iT) = mean(trackData(iTrack).matSDVec(trackData(iTrack).matLagTimesVec == lagTimes(iT)));
+
+    end
+
+    trackData(iTrack).MSD = MSD;
 
 end
 
+
 %% Compute ensemble averages
 
-%Collect all data
-allSD = cat(1, trackData.SD);
-allLagTime = cat(1, trackData.LagTime);
+%Concatenate data from tracks
+allMSD = cat(1, trackData.MSD);
+allLagTime = cat(1, trackData.matLagTimesVec);
+
+
+%%
 
 %Filter invalid particles
 filtIdx = allSD > 10;
@@ -101,7 +125,6 @@ for iT = 1:numel(lt)
 
 end
 
-
 %% Plotting
 
 scatter(lt, MSD)
@@ -110,74 +133,7 @@ errorbar(lt, MSD, SEM, 'LineStyle', 'none')
 hold off
 
 xlabel('Lag time (s)')
-ylabel('Squared displacement (\mum^2)')
-
-
-%% Compare diffusion constants
-
-fitData = fit(lt(1:4), MSD(1:4)', 'poly1');
-
-slope = fitData.p1;
-diffusion = slope / (2 * 2);
-
-diffCoeff = [];
-for iTrack = 1:numel(trackData)
-
-    if numel(trackData(iTrack).SD) >= 4
-
-        %Might need to only include 0.28 lag time
-
-        diffCoeff(iTrack) = trackData(iTrack).SD(4) / (trackData(iTrack).LagTime(4) * 2 * 2);
-
-    else
-
-        diffCoeff(iTrack) = NaN;
-    end
-
-end
-
-histogram(diffCoeff, 'BinWidth', 0.005)
-
-%%
-%Make a plot of each track vs frame.
-
-for ii = 1:numel(trackData)
-
-    if numel(trackData(ii).SD) > 1
-
-        plot(trackData(ii).Frames(1:end - 1), trackData(ii).SD)
-        hold on
-
-    end
-
-end
-hold off
-
-figure;
-for ii = 1:numel(trackData)
-
-    if numel(trackData(ii).SD) > 1
-
-        plot(trackData(ii).LagTime, trackData(ii).SD)
-        hold on
-
-    end
-
-end
-hold off
-
-
-% scatter(MSD, lt)
-% xlabel('Lag time (s)')
-% ylabel('Squared displacement (\mum^2)')
-
-
-% %%
-% %Filter particles that are too fast to be real
-% D(D > 0.5) = [];
-%
-% histogram(D, 'BinWidth', 0.0005)
-%
+ylabel('Mean squared displacement (\mum^2)')
 
 
 
