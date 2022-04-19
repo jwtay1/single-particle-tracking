@@ -19,7 +19,6 @@ z=TrackCoordinates(:,3);
 
 trackNumbers = TrackInfo(:, 1);
 %%
-% --No longer used--
 % %Constants for diffusion calculation
 % q = 4; %Twice the number of diffusable dimensions
 % dT = 0.07; %70 ms per frame
@@ -97,6 +96,17 @@ end
 allMSD = cat(1, trackData.MSD);
 allLagTime = cat(1, trackData.lagTimes);
 
+lt = unique(allLagTime);
+
+for ii = 1:numel(lt)
+
+    medianMSD(ii) = mean(allMSD(allLagTime == lt(ii)));
+
+end
+
+plot(lt, medianMSD * 1000)
+
+
 %% Plotting
 
 scatter(allLagTime, allMSD)
@@ -106,6 +116,3 @@ scatter(allLagTime, allMSD)
 
 xlabel('Lag time (s)')
 ylabel('Mean squared displacement (\mum^2)')
-
-
-
