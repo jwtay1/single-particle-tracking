@@ -13,28 +13,40 @@ function simulateRandomWalk(outputFN, varargin)
 %      timeStep - Time between frames (0.07)
 %      trackLength - Length of each track (30)
 
+%https://link.springer.com/protocol/10.1007/978-1-59745-519-0_20
+%http://www.rpgroup.caltech.edu/ncbs_pboc/code/t03_stochastic_simulations.html
+
 ip = inputParser;
-addParameter(ip, 'stepSize', 2);
+%addParameter(ip, 'stepSize', 2);
 addParameter(ip, 'numParticles', 50);
 addParameter(ip, 'timeStep', 0.07);
 addParameter(ip, 'trackLength', 30);
+addParameter(ip, 'diffusionCoefficient', 2);
 parse(ip, varargin{:})
 
 %Columns needed: frame, timestamp, x(nm), y(nm), z(nm), x sigma [nm]	y sigma [nm]	z sigma [nm]	photons	bkg photons	track	track for matlab	track length
+
+%Calculate step size:
+stepSize = sqrt(ip.Results.diffusionCoefficient * (2 * ip.Results.timeStep));
+
 
 particleData = cell(1, ip.Results.numParticles);
 
 for iParticle = 1:ip.Results.numParticles
 
     %Generate a vector of random motion
-    vDirection = rand(ip.Results.trackLength - 1, 1) * 2 * pi;
+    %vDirection = rand(ip.Results.trackLength - 1, 1) * 2 * pi;
+    vDirection = [randsample([-1, 1], ip.Results.trackLength - 1, true)', ...
+        randsample([-1, 1], ip.Results.trackLength - 1, true)'];
 
     %Generate step sizes using a normal distribution. Mean is the step
     %size. Currently assuming std = 1.
-    dStep = randn(ip.Results.trackLength - 1, 1) + ip.Results.stepSize;
+    %dStep = randn(ip.Results.trackLength - 1, 1) + ip.Results.stepSize;
+    dStep = stepSize;
 
     %Convert the above into Cartesian coordinates
-    dStepXY = [dStep .* cos(vDirection), dStep .* sin(vDirection)];
+    %dStepXY = [dStep .* cos(vDirection), dStep .* sin(vDirection)];
+    dStepXY = [dStep .* vDirection(:, 1), dStep .* vDirection(:, 2)];
 
     %Generate a random starting position
     dStepXY = [rand(1), rand(1); dStepXY];
@@ -52,7 +64,7 @@ for iParticle = 1:ip.Results.numParticles
         ones(ip.Results.trackLength, 1) * iParticle, ones(ip.Results.trackLength, 1) * iParticle,...
         ones(ip.Results.trackLength, 1) * ip.Results.trackLength];
 
-        %Plot for verification
+%         %Plot for verification
 %     plot(particlePos(:, 1), particlePos(:, 2))
 %     keyboard
 

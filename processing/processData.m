@@ -2,32 +2,21 @@ clearvars
 clc
 
 trackData = readDataFromXLS(...
-    'D:\Projects\ALMC Tickets\TXXX-Upton\data\spt 1s dark interval data worksheet.xlsx', ...
+    '../../data/spt 1s dark interval data worksheet.xlsx', ...
     'MSC18 1s 2.0', 21);
 
-%%
+[timeLag, squareDistances] = calculateSDandLagTime(trackData);
 
-[T, SD] = calculateSDandLagTime(trackData);
-
-lagTimes = unique(T);
-
-%Plot histogram of 1, 2, 3, 4 deltaT
-for ii = 1:5
-
-    histogram(SD(T == lagTimes(ii)), 'binWidth', 0.0001)
-    hold on
-
-end
-
-hold off
-
-%%
+%Find unique time lags in the data
+lt = unique(timeLag);
 
 %Compute the MSD
-for ii = 1:numel(lagTimes)
-
-    MSD(ii) = mean(SD(T == lagTimes(ii)));
-
+for ii = 1:numel(lt)
+    MSD(ii) = mean(squareDistances(timeLag == lt(ii)));
 end
 
-plot(lagTimes, MSD)
+%Fit MSD data to a line
+fitData = fit(lt(1:4)', MSD(1:4)', 'poly1');
+
+%Compute the diffusion coefficient
+D = (1/(2 * 2)) * fitData.p1;

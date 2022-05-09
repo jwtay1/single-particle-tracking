@@ -1,4 +1,4 @@
-function [T, SD] = calculateSDandLagTime(trackData)
+function [T, SD, dR] = calculateSDandLagTime(trackData)
 %CALCULATESDANDLAGTIME  Calculate SD and lag times
 %
 %  [T, SD] = CALCULATESDANDLAGTIME returns the time lag T and square
@@ -6,6 +6,7 @@ function [T, SD] = calculateSDandLagTime(trackData)
 
 T = [];
 SD = [];
+dR = [];
 
 for iTrack = 1:numel(trackData)
 
@@ -41,6 +42,7 @@ for iTrack = 1:numel(trackData)
 
         currSD = [];
         currLagTimes = [];
+        currdR = [];
 
         for ii = 1:(numDetections - nn)
 
@@ -48,6 +50,7 @@ for iTrack = 1:numel(trackData)
             dy = newTrackData(iTrack).y(ii + nn) - newTrackData(iTrack).y(ii);
             dz = newTrackData(iTrack).z(ii + nn) - newTrackData(iTrack).z(ii);
             
+            currDR(ii, :) = [dx, dy, dz];
             currSD(ii) = dx.^2 + dy.^2 + dz.^2;
             currLagTimes(ii) = newTrackData(iTrack).Timestamp(ii + nn) - newTrackData(iTrack).Timestamp(ii);
 
@@ -55,10 +58,16 @@ for iTrack = 1:numel(trackData)
 
         %Remove any nans
         currLagTimes(isnan(currSD)) = [];
+        currDR(isnan(currSD), :) = [];
         currSD(isnan(currSD)) = [];
 
         T = [T currLagTimes];
         SD = [SD currSD];
+        try
+        dR = [dR; currDR];
+        catch
+            keyboard
+        end
 
     end
 
