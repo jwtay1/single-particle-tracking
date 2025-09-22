@@ -87,6 +87,8 @@ Valid paramters are:
 * `numParticles` - Number of particles to simulate
 * `timeStep` - Time between each measurement/frame
 * `trackLength` - Number of timepoints to simulate
+
+This code was develpoed by Dr. Jian Wei Tay.
 * `diffusionCoefficient` - Expected diffusion coefficient.
 
 **Note:** The step size is computed from the input diffusion coefficient as
